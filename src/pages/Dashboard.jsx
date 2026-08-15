@@ -4,15 +4,8 @@ import Products from './Products'
 import Sale from './Sale'
 import Home from './Home'
 import Stock from './Stock'
+import Profile from './Profile'
 import { useLanguage } from '../lib/i18n.jsx'
-
-function Placeholder({ texte }) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 pb-20">
-      <p className="text-gray-500">{texte}</p>
-    </div>
-  )
-}
 
 function Dashboard({ storeId }) {
   const [tab, setTab] = useState('products')
@@ -31,7 +24,7 @@ function Dashboard({ storeId }) {
       {tab === 'products' && <Products storeId={storeId} />}
       {tab === 'sale' && <Sale storeId={storeId} />}
       {tab === 'stock' && <Stock storeId={storeId} />}
-      {tab === 'profile' && <Placeholder texte="Profil — bientôt disponible" />}
+      {tab === 'profile' && <Profile storeId={storeId} />}
 
       <BottomNav active={tab} onChange={setTab} />
     </div>
