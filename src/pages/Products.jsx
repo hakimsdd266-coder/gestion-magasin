@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react'
 import { Plus, Search, Pencil, Trash2, X, ScanLine } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import BarcodeScanner from '../components/BarcodeScanner'
+import { useLanguage } from '../lib/i18n.jsx'
 
 function Products({ storeId }) {
+  const { t } = useLanguage()
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
@@ -74,7 +76,7 @@ function Products({ storeId }) {
       .single()
 
     if (error) {
-      setError('Erreur lors de la création de la catégorie.')
+      setError(t('errorCreateCategory'))
       return
     }
     setCategories((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
@@ -104,7 +106,7 @@ function Products({ storeId }) {
       : await supabase.from('products').insert(payload)
 
     if (error) {
-      setError("Erreur lors de l'enregistrement.")
+      setError(t('errorSaving'))
       setSaving(false)
       return
     }
@@ -115,7 +117,7 @@ function Products({ storeId }) {
   }
 
   const supprimer = async (id) => {
-    if (!confirm('Supprimer ce produit ?')) return
+    if (!confirm(t('confirmDeleteProduct'))) return
     const { error } = await supabase.from('products').delete().eq('id', id)
     if (error) console.error(error)
     else setProducts((prev) => prev.filter((p) => p.id !== id))
@@ -124,13 +126,13 @@ function Products({ storeId }) {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <div className="px-4 py-6 max-w-md mx-auto">
-        <h1 className="text-xl font-semibold text-gray-800 mb-4">Produits</h1>
+        <h1 className="text-xl font-semibold text-gray-800 mb-4">{t('productsTitle')}</h1>
 
         <div className="relative mb-3">
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            placeholder="Rechercher un produit..."
+            placeholder={t('searchProduct')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 text-base"
@@ -143,7 +145,7 @@ function Products({ storeId }) {
               onClick={() => setFilterCategory('all')}
               className={`shrink-0 px-3 py-1.5 rounded-full text-sm ${filterCategory === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
             >
-              Toutes
+              {t('allCategories')}
             </button>
             {categories.map((c) => (
               <button
@@ -157,11 +159,11 @@ function Products({ storeId }) {
           </div>
         )}
 
-        {loading && <p className="text-gray-500 text-center py-8">Chargement...</p>}
+        {loading && <p className="text-gray-500 text-center py-8">{t('loadingText')}</p>}
 
         {!loading && filtres.length === 0 && (
           <div className="bg-white rounded-2xl p-8 text-center text-gray-500">
-            Aucun produit
+            {t('noProducts')}
           </div>
         )}
 
@@ -171,10 +173,10 @@ function Products({ storeId }) {
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-gray-800 truncate">{p.name}</p>
                 <p className="text-sm text-gray-500">
-                  {p.sale_price} DA · Stock: {p.quantity}
+                  {p.sale_price} {t('currency')} · {t('stockLabel')}: {p.quantity}
                   {p.quantity <= p.alert_threshold && (
                     <span className="ml-2 inline-block px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-xs">
-                      Stock bas
+                      {t('lowStock')}
                     </span>
                   )}
                 </p>
@@ -207,7 +209,7 @@ function Products({ storeId }) {
           <div className="bg-white rounded-t-3xl w-full max-h-[85vh] overflow-y-auto p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-800">
-                {editing ? 'Modifier le produit' : 'Ajouter un produit'}
+                {editing ? t('editProduct') : t('addProduct')}
               </h2>
               <button onClick={() => setModalOpen(false)} className="text-gray-400">
                 <X size={22} />
@@ -217,7 +219,7 @@ function Products({ storeId }) {
             <form onSubmit={handleSubmit} className="space-y-3">
               <input
                 type="text"
-                placeholder="Nom du produit"
+                placeholder={t('productName')}
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 required
@@ -227,7 +229,7 @@ function Products({ storeId }) {
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Code-barres"
+                  placeholder={t('barcode')}
                   value={form.barcode}
                   onChange={(e) => setForm({ ...form, barcode: e.target.value })}
                   className="flex-1 px-4 py-3 rounded-xl border border-gray-300 text-base"
@@ -249,7 +251,7 @@ function Products({ storeId }) {
                       onChange={(e) => setForm({ ...form, category_id: e.target.value })}
                       className="flex-1 px-4 py-3 rounded-xl border border-gray-300 text-base bg-white"
                     >
-                      <option value="">Aucune catégorie</option>
+                      <option value="">{t('noCategory')}</option>
                       {categories.map((c) => (
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
@@ -259,14 +261,14 @@ function Products({ storeId }) {
                       onClick={() => setShowNewCategory(true)}
                       className="px-4 rounded-xl bg-gray-100 text-gray-600 text-sm whitespace-nowrap"
                     >
-                      + Nouvelle
+                      {t('newCategoryButton')}
                     </button>
                   </div>
                 ) : (
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="Nom de la catégorie"
+                      placeholder={t('categoryName')}
                       value={newCategory}
                       onChange={(e) => setNewCategory(e.target.value)}
                       className="flex-1 px-4 py-3 rounded-xl border border-gray-300 text-base"
@@ -276,7 +278,7 @@ function Products({ storeId }) {
                       onClick={creerCategorie}
                       className="px-4 rounded-xl bg-blue-600 text-white text-sm"
                     >
-                      Créer
+                      {t('create')}
                     </button>
                   </div>
                 )}
@@ -286,7 +288,7 @@ function Products({ storeId }) {
                 <input
                   type="number"
                   step="0.01"
-                  placeholder="Prix d'achat"
+                  placeholder={t('purchasePrice')}
                   value={form.purchase_price}
                   onChange={(e) => setForm({ ...form, purchase_price: e.target.value })}
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 text-base"
@@ -294,7 +296,7 @@ function Products({ storeId }) {
                 <input
                   type="number"
                   step="0.01"
-                  placeholder="Prix de vente"
+                  placeholder={t('salePrice')}
                   value={form.sale_price}
                   onChange={(e) => setForm({ ...form, sale_price: e.target.value })}
                   required
@@ -304,7 +306,7 @@ function Products({ storeId }) {
               <div className="grid grid-cols-2 gap-3">
                 <input
                   type="number"
-                  placeholder="Quantité"
+                  placeholder={t('quantity')}
                   value={form.quantity}
                   onChange={(e) => setForm({ ...form, quantity: e.target.value })}
                   required
@@ -312,7 +314,7 @@ function Products({ storeId }) {
                 />
                 <input
                   type="number"
-                  placeholder="Seuil alerte"
+                  placeholder={t('alertThreshold')}
                   value={form.alert_threshold}
                   onChange={(e) => setForm({ ...form, alert_threshold: e.target.value })}
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 text-base"
@@ -326,7 +328,7 @@ function Products({ storeId }) {
                 disabled={saving}
                 className="w-full py-3 rounded-xl bg-blue-600 text-white font-medium disabled:opacity-50"
               >
-                {saving ? 'Enregistrement...' : 'Enregistrer'}
+                {saving ? t('saving') : t('save')}
               </button>
             </form>
           </div>

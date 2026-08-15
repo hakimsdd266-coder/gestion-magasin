@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useLanguage } from '../lib/i18n.jsx'
 
 function Home({ storeId }) {
+  const { t, lang } = useLanguage()
   const [sales, setSales] = useState([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(null)
@@ -42,24 +44,28 @@ function Home({ storeId }) {
     }
   }
 
+  const localeCode = lang === 'ar' ? 'ar-DZ' : 'fr-FR'
+
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <div className="px-4 py-6 max-w-md mx-auto">
-        <h1 className="text-xl font-semibold text-gray-800 mb-4">Accueil</h1>
+        <h1 className="text-xl font-semibold text-gray-800 mb-4">{t('homeTitle')}</h1>
 
         <div className="bg-blue-600 rounded-2xl p-5 mb-6 text-white">
-          <p className="text-blue-100 text-sm mb-1">Ventes aujourd'hui</p>
-          <p className="text-3xl font-semibold">{totalDuJour.toFixed(2)} DA</p>
-          <p className="text-blue-100 text-sm mt-1">{ventesDuJour.length} vente{ventesDuJour.length !== 1 ? 's' : ''}</p>
+          <p className="text-blue-100 text-sm mb-1">{t('salesTodayLabel')}</p>
+          <p className="text-3xl font-semibold">{totalDuJour.toFixed(2)} {t('currency')}</p>
+          <p className="text-blue-100 text-sm mt-1">
+            {ventesDuJour.length} {ventesDuJour.length !== 1 ? t('salesWord') : t('saleWord')}
+          </p>
         </div>
 
-        <h2 className="text-sm font-medium text-gray-500 mb-2">Historique des ventes</h2>
+        <h2 className="text-sm font-medium text-gray-500 mb-2">{t('salesHistory')}</h2>
 
-        {loading && <p className="text-gray-500 text-center py-8">Chargement...</p>}
+        {loading && <p className="text-gray-500 text-center py-8">{t('loadingText')}</p>}
 
         {!loading && sales.length === 0 && (
           <div className="bg-white rounded-2xl p-8 text-center text-gray-400">
-            Aucune vente pour l'instant
+            {t('noSalesYet')}
           </div>
         )}
 
@@ -71,11 +77,11 @@ function Home({ storeId }) {
                 className="w-full flex items-center justify-between px-4 py-3"
               >
                 <div className="text-left">
-                  <p className="font-medium text-gray-800">{Number(s.total).toFixed(2)} DA</p>
+                  <p className="font-medium text-gray-800">{Number(s.total).toFixed(2)} {t('currency')}</p>
                   <p className="text-sm text-gray-500">
-                    {new Date(s.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(s.created_at).toLocaleString(localeCode, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                     {' · '}
-                    {s.payment_method === 'cash' ? 'Espèces' : 'Autre'}
+                    {s.payment_method === 'cash' ? t('cash') : t('other')}
                   </p>
                 </div>
                 {expanded === s.id ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
@@ -83,11 +89,11 @@ function Home({ storeId }) {
 
               {expanded === s.id && (
                 <div className="border-t border-gray-100 px-4 py-3">
-                  {!items[s.id] && <p className="text-sm text-gray-400">Chargement...</p>}
+                  {!items[s.id] && <p className="text-sm text-gray-400">{t('loadingText')}</p>}
                   {items[s.id]?.map((it) => (
                     <div key={it.id} className="flex items-center justify-between text-sm py-1">
-                      <span className="text-gray-600">{it.products?.name || 'Produit supprimé'} × {it.quantity}</span>
-                      <span className="text-gray-800">{Number(it.subtotal).toFixed(2)} DA</span>
+                      <span className="text-gray-600">{it.products?.name || t('productDeleted')} × {it.quantity}</span>
+                      <span className="text-gray-800">{Number(it.subtotal).toFixed(2)} {t('currency')}</span>
                     </div>
                   ))}
                 </div>

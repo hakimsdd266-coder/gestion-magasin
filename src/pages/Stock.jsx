@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Plus, X, ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useLanguage } from '../lib/i18n.jsx'
 
 function Stock({ storeId }) {
+  const { t, lang } = useLanguage()
   const [movements, setMovements] = useState([])
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -51,7 +53,7 @@ function Stock({ storeId }) {
     })
 
     if (error) {
-      setError("Erreur lors de l'enregistrement.")
+      setError(t('errorSaving'))
       setSaving(false)
       return
     }
@@ -61,16 +63,18 @@ function Stock({ storeId }) {
     charger()
   }
 
+  const localeCode = lang === 'ar' ? 'ar-DZ' : 'fr-FR'
+
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <div className="px-4 py-6 max-w-md mx-auto">
-        <h1 className="text-xl font-semibold text-gray-800 mb-4">Mouvements de stock</h1>
+        <h1 className="text-xl font-semibold text-gray-800 mb-4">{t('stockMovementsTitle')}</h1>
 
-        {loading && <p className="text-gray-500 text-center py-8">Chargement...</p>}
+        {loading && <p className="text-gray-500 text-center py-8">{t('loadingText')}</p>}
 
         {!loading && movements.length === 0 && (
           <div className="bg-white rounded-2xl p-8 text-center text-gray-400">
-            Aucun mouvement pour l'instant
+            {t('noMovementsYet')}
           </div>
         )}
 
@@ -84,7 +88,7 @@ function Stock({ storeId }) {
               )}
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-gray-800 truncate">
-                  {m.products?.name || 'Produit supprimé'}
+                  {m.products?.name || t('productDeleted')}
                 </p>
                 <p className="text-sm text-gray-500">
                   {m.type === 'in' ? '+' : '-'}{m.quantity}
@@ -92,7 +96,7 @@ function Stock({ storeId }) {
                 </p>
               </div>
               <p className="text-xs text-gray-400 shrink-0">
-                {new Date(m.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                {new Date(m.created_at).toLocaleDateString(localeCode, { day: '2-digit', month: '2-digit' })}
               </p>
             </div>
           ))}
@@ -110,7 +114,7 @@ function Stock({ storeId }) {
         <div className="fixed inset-0 bg-black/40 flex items-end z-50">
           <div className="bg-white rounded-t-3xl w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Mouvement de stock</h2>
+              <h2 className="text-lg font-semibold text-gray-800">{t('stockMovementModalTitle')}</h2>
               <button onClick={() => setModalOpen(false)} className="text-gray-400">
                 <X size={22} />
               </button>
@@ -124,7 +128,7 @@ function Stock({ storeId }) {
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 text-base bg-white"
               >
                 {products.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name} (stock: {p.quantity})</option>
+                  <option key={p.id} value={p.id}>{p.name} ({t('stockLabel')}: {p.quantity})</option>
                 ))}
               </select>
 
@@ -134,20 +138,20 @@ function Stock({ storeId }) {
                   onClick={() => setForm({ ...form, type: 'in' })}
                   className={`flex-1 py-2.5 rounded-xl font-medium ${form.type === 'in' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600'}`}
                 >
-                  Entrée
+                  {t('movementIn')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setForm({ ...form, type: 'out' })}
                   className={`flex-1 py-2.5 rounded-xl font-medium ${form.type === 'out' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600'}`}
                 >
-                  Sortie
+                  {t('movementOut')}
                 </button>
               </div>
 
               <input
                 type="number"
-                placeholder="Quantité"
+                placeholder={t('quantity')}
                 value={form.quantity}
                 onChange={(e) => setForm({ ...form, quantity: e.target.value })}
                 required
@@ -157,7 +161,7 @@ function Stock({ storeId }) {
 
               <input
                 type="text"
-                placeholder="Raison (optionnel — casse, inventaire...)"
+                placeholder={t('reasonPlaceholder')}
                 value={form.reason}
                 onChange={(e) => setForm({ ...form, reason: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 text-base"
@@ -170,7 +174,7 @@ function Stock({ storeId }) {
                 disabled={saving || !form.product_id}
                 className="w-full py-3 rounded-xl bg-blue-600 text-white font-medium disabled:opacity-50"
               >
-                {saving ? 'Enregistrement...' : 'Enregistrer'}
+                {saving ? t('saving') : t('save')}
               </button>
             </form>
           </div>

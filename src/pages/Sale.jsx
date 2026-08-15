@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react'
 import { Search, ScanLine, Plus, Minus, Trash2, X, Check } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import BarcodeScanner from '../components/BarcodeScanner'
+import { useLanguage } from '../lib/i18n.jsx'
 
 function Sale({ storeId }) {
+  const { t } = useLanguage()
   const [products, setProducts] = useState([])
   const [search, setSearch] = useState('')
   const [cart, setCart] = useState([])
@@ -52,7 +54,7 @@ function Sale({ storeId }) {
     if (produit) {
       ajouterAuPanier(produit)
     } else {
-      setError('Aucun produit avec ce code-barres.')
+      setError(t('errorNoBarcodeProduct'))
       setTimeout(() => setError(''), 3000)
     }
   }
@@ -91,7 +93,7 @@ function Sale({ storeId }) {
     })
 
     if (error) {
-      setError('Erreur lors de la vente. Réessayez.')
+      setError(t('errorSale'))
       setProcessing(false)
       return
     }
@@ -107,14 +109,14 @@ function Sale({ storeId }) {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <div className="px-4 py-6 max-w-md mx-auto">
-        <h1 className="text-xl font-semibold text-gray-800 mb-4">Vente</h1>
+        <h1 className="text-xl font-semibold text-gray-800 mb-4">{t('saleTitle')}</h1>
 
         <div className="flex gap-2 mb-4">
           <div className="relative flex-1">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Chercher un produit..."
+              placeholder={t('searchProductShort')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 text-base"
@@ -138,7 +140,7 @@ function Sale({ storeId }) {
                 className="w-full flex items-center justify-between px-4 py-3 border-b border-gray-100 last:border-0 disabled:opacity-40"
               >
                 <span className="text-gray-800">{p.name}</span>
-                <span className="text-sm text-gray-500">{p.sale_price} DA · Stock: {p.quantity}</span>
+                <span className="text-sm text-gray-500">{p.sale_price} {t('currency')} · {t('stockLabel')}: {p.quantity}</span>
               </button>
             ))}
           </div>
@@ -146,11 +148,11 @@ function Sale({ storeId }) {
 
         {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
 
-        <h2 className="text-sm font-medium text-gray-500 mb-2">Panier</h2>
+        <h2 className="text-sm font-medium text-gray-500 mb-2">{t('cartLabel')}</h2>
 
         {cart.length === 0 && (
           <div className="bg-white rounded-2xl p-8 text-center text-gray-400">
-            Panier vide — cherchez ou scannez un produit
+            {t('cartEmpty')}
           </div>
         )}
 
@@ -159,7 +161,7 @@ function Sale({ storeId }) {
             <div key={i.id} className="bg-white rounded-2xl p-3 shadow-sm flex items-center justify-between">
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-gray-800 truncate">{i.name}</p>
-                <p className="text-sm text-gray-500">{i.sale_price} DA × {i.quantity} = {(i.sale_price * i.quantity).toFixed(2)} DA</p>
+                <p className="text-sm text-gray-500">{i.sale_price} {t('currency')} × {i.quantity} = {(i.sale_price * i.quantity).toFixed(2)} {t('currency')}</p>
               </div>
               <div className="flex items-center gap-2 ml-2">
                 <button onClick={() => changerQuantite(i.id, -1)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600">
@@ -181,14 +183,14 @@ function Sale({ storeId }) {
       {cart.length > 0 && (
         <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-4">
           <div className="max-w-md mx-auto flex items-center justify-between mb-3">
-            <span className="text-gray-600">Total</span>
-            <span className="text-xl font-semibold text-gray-800">{total.toFixed(2)} DA</span>
+            <span className="text-gray-600">{t('totalLabel')}</span>
+            <span className="text-xl font-semibold text-gray-800">{total.toFixed(2)} {t('currency')}</span>
           </div>
           <button
             onClick={() => setConfirming(true)}
             className="w-full max-w-md mx-auto block py-3 rounded-xl bg-blue-600 text-white font-medium"
           >
-            Encaisser
+            {t('checkout')}
           </button>
         </div>
       )}
@@ -201,27 +203,27 @@ function Sale({ storeId }) {
         <div className="fixed inset-0 bg-black/40 flex items-end z-50">
           <div className="bg-white rounded-t-3xl w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Confirmer la vente</h2>
+              <h2 className="text-lg font-semibold text-gray-800">{t('confirmSale')}</h2>
               <button onClick={() => setConfirming(false)} className="text-gray-400">
                 <X size={22} />
               </button>
             </div>
 
-            <p className="text-3xl font-semibold text-gray-800 mb-4">{total.toFixed(2)} DA</p>
+            <p className="text-3xl font-semibold text-gray-800 mb-4">{total.toFixed(2)} {t('currency')}</p>
 
-            <p className="text-sm text-gray-500 mb-2">Moyen de paiement</p>
+            <p className="text-sm text-gray-500 mb-2">{t('paymentMethod')}</p>
             <div className="flex gap-2 mb-6">
               <button
                 onClick={() => setPaymentMethod('cash')}
                 className={`flex-1 py-2.5 rounded-xl font-medium ${paymentMethod === 'cash' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}
               >
-                Espèces
+                {t('cash')}
               </button>
               <button
                 onClick={() => setPaymentMethod('other')}
                 className={`flex-1 py-2.5 rounded-xl font-medium ${paymentMethod === 'other' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}
               >
-                Autre
+                {t('other')}
               </button>
             </div>
 
@@ -232,7 +234,7 @@ function Sale({ storeId }) {
               disabled={processing}
               className="w-full py-3 rounded-xl bg-blue-600 text-white font-medium disabled:opacity-50"
             >
-              {processing ? 'Traitement...' : 'Valider la vente'}
+              {processing ? t('processing') : t('validateSale')}
             </button>
           </div>
         </div>
@@ -244,7 +246,7 @@ function Sale({ storeId }) {
             <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
               <Check size={18} className="text-green-600" />
             </div>
-            <span className="font-medium text-gray-800">Vente enregistrée</span>
+            <span className="font-medium text-gray-800">{t('saleRecorded')}</span>
           </div>
         </div>
       )}
