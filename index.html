@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <script>
+      function showErr(msg) {
+        var d = document.createElement('pre');
+        d.style.cssText = 'color:#fff;background:#b91c1c;padding:16px;white-space:pre-wrap;font-size:14px;margin:0;';
+        d.textContent = msg;
+        document.body.prepend(d);
+      }
+      window.addEventListener('error', function (e) {
+        showErr('ERREUR JS : ' + e.message + '\n' + (e.filename || '') + ':' + (e.lineno || ''));
+      });
+      window.addEventListener('unhandledrejection', function (e) {
+        showErr('ERREUR PROMESSE : ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+      });
+      setTimeout(function () {
+        var root = document.getElementById('root');
+        if (root && root.children.length === 0) {
+          showErr('Après 3s, rien ne s\'affiche dans #root, et aucune erreur JS n\'a été capturée.');
+          return;
+        }
+        var input = document.querySelector('input');
+        if (!input) {
+          showErr('DIAGNOSTIC : aucun <input> trouvé sur la page après 3s.');
+          return;
+        }
+        var cs = getComputedStyle(input);
+        var report =
+          'DIAGNOSTIC CSS (champ trouvé) :\n' +
+          'class="' + input.className + '"\n' +
+          'background-color: ' + cs.backgroundColor + '\n' +
+          'color (texte): ' + cs.color + '\n' +
+          'border-radius: ' + cs.borderRadius + '\n' +
+          'font-family (body): ' + getComputedStyle(document.body).fontFamily;
+        showErr(report);
+      }, 3000);
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gestion Magasin</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
