@@ -1,0 +1,433 @@
+import { useState, useEffect } from 'react'
+import { Plus, Search, Pencil, Trash2, X, ScanLine, Package, AlertTriangle, ArrowUp, ArrowDown } from 'lucide-react'
+import { supabase } from '../lib/supabase'
+import BarcodeScanner from '../components/BarcodeScanner'
+import ConfirmModal from '../components/ConfirmModal'
+import SkeletonList from '../components/SkeletonList'
+import { useToast } from '../lib/toast.jsx'
+import { useLanguage } from '../lib/i18n.jsx'
+
+const fieldStyle = { backgroundColor: 'rgba(255, 255, 255, 0.05)', color: '#f5f3ff' }
+
+function Products({ storeId }) {
+  const { t } = useLanguage()
+  const { showToast } = useToast()
+  const [products, setProducts] = useState([])
+  const [categories, setCategories] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [filterCategory, setFilterCategory] = useState('all')
+  const [sortBy, setSortBy] = useState('name')
+  const [sortDir, setSortDir] = useState('asc')
+  const [modalOpen, setModalOpen] = useState(false)
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [editing, setEditing] = useState(null)
+  const [newCategory, setNewCategory] = useState('')
+  const [showNewCategory, setShowNewCategory] = useState(false)
+  const [form, setForm] = useState({ name: '', barcode: '', category_id: '', purchase_price: '', sale_price: '', quantity: '', alert_threshold: '5' })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+
+  const charger = async () => {
+    setLoading(true)
+    const [{ data: prods, error: prodErr }, { data: cats, error: catErr }] = await Promise.all([
+      supabase.from('products').select('*').eq('store_id', storeId).order('name'),
+      supabase.from('categories').select('*').eq('store_id', storeId).order('name'),
+    ])
+    if (prodErr) console.error(prodErr)
+    else setProducts(prods)
+    if (catErr) console.error(catErr)
+    else setCategories(cats)
+    setLoading(false)
+  }
+
+  useEffect(() => { charger() }, [storeId])
+
+  const nomCategorie = (id) => categories.find((c) => c.id === id)?.name
+
+  const filtres = products.filter((p) => {
+    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || (p.barcode || '').includes(search)
+    const matchCat = filterCategory === 'all' || p.category_id === filterCategory
+    return matchSearch && matchCat
+  })
+
+  const handleSortClick = (key) => {
+    if (sortBy === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortBy(key)
+      setSortDir('asc')
+    }
+  }
+
+  const filtresTries = [...filtres].sort((a, b) => {
+    let compare = 0
+    if (sortBy === 'name') compare = a.name.localeCompare(b.name)
+    else if (sortBy === 'price') compare = a.sale_price - b.sale_price
+    else if (sortBy === 'stock') compare = a.quantity - b.quantity
+    return sortDir === 'asc' ? compare : -compare
+  })
+
+  const ouvrirAjout = () => {
+    setEditing(null)
+    setForm({ name: '', barcode: '', category_id: '', purchase_price: '', sale_price: '', quantity: '', alert_threshold: '5' })
+    setShowNewCategory(false)
+    setError('')
+    setModalOpen(true)
+  }
+
+  const ouvrirModif = (p) => {
+    setEditing(p)
+    setForm({
+      name: p.name,
+      barcode: p.barcode || '',
+      category_id: p.category_id || '',
+      purchase_price: p.purchase_price,
+      sale_price: p.sale_price,
+      quantity: p.quantity,
+      alert_threshold: p.alert_threshold,
+    })
+    setShowNewCategory(false)
+    setError('')
+    setModalOpen(true)
+  }
+
+  const creerCategorie = async () => {
+    if (!newCategory.trim()) return
+    const { data, error } = await supabase
+      .from('categories')
+      .insert({ store_id: storeId, name: newCategory.trim() })
+      .select()
+      .single()
+
+    if (error) {
+      setError(t('errorCreateCategory'))
+      return
+    }
+    setCategories((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
+    setForm((f) => ({ ...f, category_id: data.id }))
+    setNewCategory('')
+    setShowNewCategory(false)
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    setError('')
+
+    const payload = {
+      store_id: storeId,
+      name: form.name,
+      barcode: form.barcode || null,
+      category_id: form.category_id || null,
+      purchase_price: parseFloat(form.purchase_price) || 0,
+      sale_price: parseFloat(form.sale_price) || 0,
+      quantity: parseInt(form.quantity) || 0,
+      alert_threshold: parseInt(form.alert_threshold) || 5,
+    }
+
+    const { error } = editing
+      ? await supabase.from('products').update(payload).eq('id', editing.id)
+      : await supabase.from('products').insert(payload)
+
+    if (error) {
+      setError(t('errorSaving'))
+      setSaving(false)
+      showToast(t('errorSaving'), 'error')
+      return
+    }
+
+    setSaving(false)
+    setModalOpen(false)
+    showToast(t('productSaved'), 'success')
+    charger()
+  }
+
+  const supprimer = (id) => setConfirmDeleteId(id)
+
+  const confirmerSuppression = async () => {
+    const id = confirmDeleteId
+    setConfirmDeleteId(null)
+    const { error } = await supabase.from('products').delete().eq('id', id)
+    if (error) {
+      console.error(error)
+      showToast(t('errorSaving'), 'error')
+    } else {
+      setProducts((prev) => prev.filter((p) => p.id !== id))
+      showToast(t('productDeleted'), 'success')
+    }
+  }
+
+  return (
+    <div className="min-h-screen pb-24">
+      <div className="px-4 py-6 max-w-md mx-auto">
+        <h1 className="heading text-xl mb-4">{t('productsTitle')}</h1>
+
+        <div className="relative mb-3">
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-300/50" />
+          <input
+            type="text"
+            placeholder={t('searchProduct')}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="input-field pl-10"
+            style={fieldStyle}
+          />
+        </div>
+
+        <div className="flex gap-2 mb-3 overflow-x-auto -mx-4 px-4">
+          {[
+            { key: 'name', label: t('sortName') },
+            { key: 'price', label: t('sortPrice') },
+            { key: 'stock', label: t('stockLabel') },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => handleSortClick(key)}
+              className={`chip flex items-center gap-1.5 shrink-0 ${sortBy === key ? 'chip-active' : ''}`}
+            >
+              {label}
+              {sortBy === key && (sortDir === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
+            </button>
+          ))}
+        </div>
+
+        {categories.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto mb-4 pb-1 -mx-4 px-4">
+            <button
+              onClick={() => setFilterCategory('all')}
+              className={`chip ${filterCategory === 'all' ? 'chip-active' : ''}`}
+            >
+              {t('allCategories')}
+            </button>
+            {categories.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setFilterCategory(c.id)}
+                className={`chip ${filterCategory === c.id ? 'chip-active' : ''}`}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {loading && <SkeletonList count={4} />}
+
+        {!loading && filtresTries.length === 0 && (
+          <div className="empty-state">
+            <div className="empty-state-icon"><Package size={26} /></div>
+            <p className="empty-state-title">{t('noProducts')}</p>
+          </div>
+        )}
+
+        {!loading && filtresTries.length > 0 && (
+          <p className="text-xs font-medium uppercase tracking-wider text-violet-300/40 mb-2 px-1">
+            {filtresTries.length} {t('productsTitle')}
+          </p>
+        )}
+
+        <div className="space-y-2.5">
+          {filtresTries.map((p) => {
+            const isLow = p.quantity <= p.alert_threshold
+            return (
+              <div key={p.id} className="list-row">
+                <div className={`icon-badge ${isLow ? 'icon-badge-rose' : 'icon-badge-violet'}`}>
+                  {isLow ? <AlertTriangle size={20} /> : <Package size={20} />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-violet-50 truncate">{p.name}</p>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5 text-sm text-muted">
+                    <span className="font-semibold text-violet-100">{p.sale_price} {t('currency')}</span>
+                    <span className="w-1 h-1 rounded-full bg-violet-300/30" />
+                    <span>{t('stockLabel')}: {p.quantity}</span>
+                    {isLow && <span className="badge-danger">{t('lowStock')}</span>}
+                  </div>
+                  {p.category_id && (
+                    <p className="text-xs text-violet-300/50 mt-1">{nomCategorie(p.category_id)}</p>
+                  )}
+                </div>
+                <div className="flex gap-1.5">
+                  <button onClick={() => ouvrirModif(p)} className="action-icon-btn action-icon-btn-edit">
+                    <Pencil size={16} />
+                  </button>
+                  <button onClick={() => supprimer(p.id)} className="action-icon-btn action-icon-btn-delete">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      <button
+        onClick={ouvrirAjout}
+        className="fixed bottom-24 right-4 fab z-40"
+      >
+        <Plus size={26} />
+      </button>
+
+      {modalOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-end z-50">
+          <div className="surface rounded-t-3xl w-full max-h-[85vh] overflow-y-auto p-6">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="icon-badge icon-badge-sm icon-badge-violet">
+                <Package size={18} />
+              </div>
+              <h2 className="heading text-lg flex-1">
+                {editing ? t('editProduct') : t('addProduct')}
+              </h2>
+              <button onClick={() => setModalOpen(false)} className="action-icon-btn bg-white/5 text-violet-300/60 hover:text-violet-100 hover:bg-white/10">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <input
+                type="text"
+                placeholder={t('productName')}
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+                className="input-field"
+                style={fieldStyle}
+              />
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder={t('barcode')}
+                  value={form.barcode}
+                  onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+                  className="input-field flex-1"
+                  style={fieldStyle}
+                />
+                <button
+                  type="button"
+                  onClick={() => setScannerOpen(true)}
+                  className="icon-badge icon-badge-violet shrink-0"
+                >
+                  <ScanLine size={20} />
+                </button>
+              </div>
+
+              <div>
+                {!showNewCategory ? (
+                  <div className="flex gap-2">
+                    <select
+                      value={form.category_id}
+                      onChange={(e) => setForm({ ...form, category_id: e.target.value })}
+                      className="input-field flex-1"
+                      style={fieldStyle}
+                    >
+                      <option value="">{t('noCategory')}</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewCategory(true)}
+                      className="btn-secondary text-sm px-4 whitespace-nowrap"
+                    >
+                      {t('newCategoryButton')}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder={t('categoryName')}
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                      className="input-field flex-1"
+                      style={fieldStyle}
+                    />
+                    <button
+                      type="button"
+                      onClick={creerCategorie}
+                      className="btn-primary text-sm px-4 whitespace-nowrap"
+                    >
+                      {t('create')}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder={t('purchasePrice')}
+                  value={form.purchase_price}
+                  onChange={(e) => setForm({ ...form, purchase_price: e.target.value })}
+                  className="input-field"
+                  style={fieldStyle}
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder={t('salePrice')}
+                  value={form.sale_price}
+                  onChange={(e) => setForm({ ...form, sale_price: e.target.value })}
+                  required
+                  className="input-field"
+                  style={fieldStyle}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="number"
+                  placeholder={t('quantity')}
+                  value={form.quantity}
+                  onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                  required
+                  className="input-field"
+                  style={fieldStyle}
+                />
+                <input
+                  type="number"
+                  placeholder={t('alertThreshold')}
+                  value={form.alert_threshold}
+                  onChange={(e) => setForm({ ...form, alert_threshold: e.target.value })}
+                  className="input-field"
+                  style={fieldStyle}
+                />
+              </div>
+
+              {error && <p className="text-danger text-sm">{error}</p>}
+
+              <button
+                type="submit"
+                disabled={saving}
+                className="btn-primary w-full disabled:opacity-50"
+              >
+                {saving ? t('saving') : t('save')}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {scannerOpen && (
+        <BarcodeScanner
+          onScan={(code) => { setForm((f) => ({ ...f, barcode: code })); setScannerOpen(false) }}
+          onClose={() => setScannerOpen(false)}
+        />
+      )}
+
+      <ConfirmModal
+        open={!!confirmDeleteId}
+        title={t('confirmDeleteProduct')}
+        confirmLabel={t('delete')}
+        cancelLabel={t('cancel')}
+        onConfirm={confirmerSuppression}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
+    </div>
+  )
+}
+
+export default Products
